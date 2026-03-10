@@ -22,7 +22,7 @@ STATE_FILE = BASE_DIR / "processed_uids.json"
 load_dotenv(ENV_FILE)
 
 EMAIL = os.getenv("EMAIL_GMAIL")
-SENHA = os.getenv("SENHA_GMAIL")
+SENHA = os.getenv("SENHA_GMAIL")  # use senha de app
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
