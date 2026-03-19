@@ -9,7 +9,7 @@ import platform
 from pathlib import Path
 from email.header import decode_header
 from dotenv import load_dotenv
-
+from bs4 import BeautifulSoup
 # =========================
 # CONFIGURAÇÃO DE CAMINHOS
 # =========================
@@ -148,6 +148,9 @@ def decodificar_cabecalho(valor):
 
 
 def extrair_corpo_texto(msg):
+    html_content = None
+    text_content = None
+
     if msg.is_multipart():
         for part in msg.walk():
             content_type = part.get_content_type()
@@ -156,23 +159,57 @@ def extrair_corpo_texto(msg):
             if "attachment" in disposition:
                 continue
 
-            if content_type == "text/plain":
-                payload = part.get_payload(decode=True)
-                charset = part.get_content_charset() or "utf-8"
-                if payload:
-                    return payload.decode(charset, errors="replace").strip()
+            payload = part.get_payload(decode=True)
+            charset = part.get_content_charset() or "utf-8"
 
-        for part in msg.walk():
-            if part.get_content_type() == "text/html":
-                payload = part.get_payload(decode=True)
-                charset = part.get_content_charset() or "utf-8"
-                if payload:
-                    return payload.decode(charset, errors="replace").strip()
+            if not payload:
+                continue
+
+            try:
+                decoded = payload.decode(charset, errors="replace")
+            except:
+                decoded = payload.decode("utf-8", errors="replace")
+
+            if content_type == "text/plain":
+                text_content = decoded
+
+            elif content_type == "text/html":
+                html_content = decoded
+
     else:
         payload = msg.get_payload(decode=True)
         charset = msg.get_content_charset() or "utf-8"
+
         if payload:
-            return payload.decode(charset, errors="replace").strip()
+            try:
+                decoded = payload.decode(charset, errors="replace")
+            except:
+                decoded = payload.decode("utf-8", errors="replace")
+
+            if msg.get_content_type() == "text/plain":
+                text_content = decoded
+            else:
+                html_content = decoded
+
+    # 🔥 PRIORIDADE: usar texto puro se existir
+    if text_content:
+        return text_content.strip()
+
+    # 🔥 SENÃO: limpar HTML
+    if html_content:
+        soup = BeautifulSoup(html_content, "html.parser")
+
+        # remove scripts e estilos
+        for tag in soup(["script", "style"]):
+            tag.decompose()
+
+        texto = soup.get_text(separator="\n")
+
+        # limpa espaços e linhas vazias
+        linhas = [linha.strip() for linha in texto.splitlines()]
+        linhas = [linha for linha in linhas if linha]
+
+        return "\n".join(linhas)
 
     return ""
 
