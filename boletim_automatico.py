@@ -226,7 +226,17 @@ def dividir_em_blocos(texto, limite=TELEGRAM_MSG_LIMIT):
     atual = ""
 
     for linha in texto.splitlines(True):
-        if len(atual) + len(linha) > limite:
+        if len(linha) > limite:
+            # Linha maior que o limite: quebra no meio
+            if atual:
+                blocos.append(atual)
+                atual = ""
+            while len(linha) > limite:
+                blocos.append(linha[:limite])
+                linha = linha[limite:]
+            if linha:
+                atual = linha
+        elif len(atual) + len(linha) > limite:
             if atual:
                 blocos.append(atual)
             atual = linha
@@ -390,7 +400,7 @@ def processar():
 
                 remetente = decodificar_cabecalho(msg.get("From"))
                 assunto = decodificar_cabecalho(msg.get("Subject"))
-                corpo = resumir_texto(extrair_corpo_texto(msg))
+                corpo = extrair_corpo_texto(msg)
 
                 mensagem = (
                     "📧 Novo e-mail recebido\n\n"
@@ -399,7 +409,11 @@ def processar():
                     f"{corpo or '(sem corpo em texto)'}"
                 )
 
-                for bloco in dividir_em_blocos(mensagem):
+                blocos = dividir_em_blocos(mensagem)
+                total = len(blocos)
+                for i, bloco in enumerate(blocos, 1):
+                    if total > 1:
+                        bloco = f"[{i}/{total}]\n{bloco}"
                     enviar_telegram(bloco)
 
                 uids_processados.append(uid)
